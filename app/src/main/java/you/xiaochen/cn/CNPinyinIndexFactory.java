@@ -19,8 +19,10 @@ public final class CNPinyinIndexFactory {
      * @return
      */
     public static <T extends CN> ArrayList<CNPinyinIndex<T>> indexList(List<CNPinyin<T>> cnPinyinList, String keyword) {
+        if (TextUtils.isEmpty(keyword) || cnPinyinList == null || cnPinyinList.isEmpty()) return null;
         ArrayList<CNPinyinIndex<T>> cnPinyinIndexArrayList = new ArrayList<>();
-        for (CNPinyin<T> cnPinyin : cnPinyinList) {
+        for (int i = 0; i < cnPinyinList.size(); i++) {
+            CNPinyin<T> cnPinyin = cnPinyinList.get(i);
             CNPinyinIndex<T> index = index(cnPinyin, keyword);
             if (index != null) {
                 cnPinyinIndexArrayList.add(index);
@@ -36,14 +38,15 @@ public final class CNPinyinIndexFactory {
      */
     public static <T extends CN> CNPinyinIndex<T> index(CNPinyin<T> cnPinyin, String keyword) {
         if (TextUtils.isEmpty(keyword)) return null;
-        CNPinyinIndex cnPinyinIndex = matcherChinese(cnPinyin, keyword);
+        String quoteKeyword = Pattern.quote(keyword);
+        CNPinyinIndex cnPinyinIndex = matcherChinese(cnPinyin, keyword, quoteKeyword);
         if (isContainChinese(keyword)) {//包含中文只匹配原字符
             return cnPinyinIndex;
         }
         if (cnPinyinIndex == null) {
-            cnPinyinIndex = matcherFirst(cnPinyin, keyword);
+            cnPinyinIndex = matcherFirst(cnPinyin, keyword, quoteKeyword);
             if (cnPinyinIndex == null) {
-                cnPinyinIndex = matchersPinyins(cnPinyin, keyword);
+                cnPinyinIndex = matchersPinyins(cnPinyin, keyword, quoteKeyword);
             }
         }
         return cnPinyinIndex;
@@ -53,11 +56,12 @@ public final class CNPinyinIndexFactory {
      * 匹配中文
      * @param cnPinyin
      * @param keyword
+     * @param quoteKeyword
      * @return
      */
-    static CNPinyinIndex matcherChinese(CNPinyin cnPinyin, String keyword) {
-        if (keyword.length() < cnPinyin.data.chinese().length()) {
-            Matcher matcher = Pattern.compile(keyword, Pattern.CASE_INSENSITIVE).matcher(cnPinyin.data.chinese());
+    static CNPinyinIndex matcherChinese(CNPinyin cnPinyin, String keyword, String quoteKeyword) {
+        if (keyword.length() <= cnPinyin.data.chinese().length()) {
+            Matcher matcher = Pattern.compile(quoteKeyword, Pattern.CASE_INSENSITIVE).matcher(cnPinyin.data.chinese());
             if (matcher.find()) {
                 return new CNPinyinIndex(cnPinyin, matcher.start(), matcher.end());
             }
@@ -71,9 +75,9 @@ public final class CNPinyinIndexFactory {
      * @param keyword
      * @return
      */
-    static CNPinyinIndex matcherFirst(CNPinyin cnPinyin, String keyword) {
+    static CNPinyinIndex matcherFirst(CNPinyin cnPinyin, String keyword, String quoteKeyword) {
         if (keyword.length() <= cnPinyin.pinyins.length) {
-            Matcher matcher = Pattern.compile(keyword, Pattern.CASE_INSENSITIVE).matcher(cnPinyin.firstChars);
+            Matcher matcher = Pattern.compile(quoteKeyword, Pattern.CASE_INSENSITIVE).matcher(cnPinyin.firstChars);
             if (matcher.find()) {
                 return new CNPinyinIndex(cnPinyin, matcher.start(), matcher.end());
             }
@@ -87,21 +91,21 @@ public final class CNPinyinIndexFactory {
      * @param keyword
      * @return
      */
-    static CNPinyinIndex matchersPinyins(CNPinyin cnPinyin, String keyword) {
+    static CNPinyinIndex matchersPinyins(CNPinyin cnPinyin, String keyword, String quoteKeyword) {
         if (keyword.length() > cnPinyin.pinyinsTotalLength) return null;
         int start = -1;
         int end = -1;
         for (int i = 0; i < cnPinyin.pinyins.length; i++) {
             String pat = cnPinyin.pinyins[i];
             if (pat.length() >= keyword.length()) {//首个位置索引
-                Matcher matcher = Pattern.compile(keyword, Pattern.CASE_INSENSITIVE).matcher(pat);
+                Matcher matcher = Pattern.compile(quoteKeyword, Pattern.CASE_INSENSITIVE).matcher(pat);
                 if (matcher.find() && matcher.start() == 0) {
                     start = i;
                     end = i + 1;
                     break;
                 }
             } else {
-                Matcher matcher = Pattern.compile(pat, Pattern.CASE_INSENSITIVE).matcher(keyword);
+                Matcher matcher = Pattern.compile(Pattern.quote(pat), Pattern.CASE_INSENSITIVE).matcher(keyword);
                 if (matcher.find() && matcher.start() == 0) {//全拼匹配第一个必须在0位置
                     start = i;
                     String left = matcher.replaceFirst("");
@@ -127,12 +131,12 @@ public final class CNPinyinIndexFactory {
         if (index < pinyinGroup.length) {
             String pinyin = pinyinGroup[index];
             if (pinyin.length() >= pattern.length()) {//首个位置索引
-                Matcher matcher = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE).matcher(pinyin);
+                Matcher matcher = Pattern.compile(Pattern.quote(pattern), Pattern.CASE_INSENSITIVE).matcher(pinyin);
                 if (matcher.find() && matcher.start() == 0) {
                     return index + 1;
                 }
             } else {
-                Matcher matcher = Pattern.compile(pinyin, Pattern.CASE_INSENSITIVE).matcher(pattern);
+                Matcher matcher = Pattern.compile(Pattern.quote(pinyin), Pattern.CASE_INSENSITIVE).matcher(pattern);
                 if (matcher.find() && matcher.start() == 0) {//全拼匹配第一个必须在0位置
                     String left = matcher.replaceFirst("");
                     return end(pinyinGroup, left, index + 1);

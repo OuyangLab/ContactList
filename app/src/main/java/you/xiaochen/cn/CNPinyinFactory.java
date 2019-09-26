@@ -128,7 +128,10 @@ public final class CNPinyinFactory {
         if (c >= 'a' && c <= 'z') {
             c -= 32;
         }
-        return c;
+        if (c >= 'A' && c <= 'Z') {
+            return c;
+        }
+        return DEF_CHAR;
     }
 
 }
